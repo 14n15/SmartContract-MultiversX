@@ -1,0 +1,102 @@
+#lang multiversx
+
+import multiversx.blockchain
+import multiversx.storage
+
+contract BlockchainVoting {
+
+  public immutable owner: blockchain::Address
+
+  public var totalCandidates: u64
+  public var totalVoters: u64
+
+  public struct Voter {
+    id: u64
+    name: String
+    voterAddress: blockchain::Address 
+    candidateAddress: blockchain::Address
+  }
+
+  public struct Candidate {
+    name: String
+    candidateAddress: blockchain::Address
+    voteCount: u64
+  }
+
+  public struct Proposal {
+    name: String
+    proposerAddress: blockchain::Address
+  }
+
+  public var voters: [Voter]
+  public var candidates: [Candidate]
+  public var proposals: [Proposal]
+
+  init() {
+    self.owner = blockchain::getCaller()
+  }
+
+  public fun addCandidate(address: blockchain::Address, name: String) {
+    for candidate in self.candidates {
+      if candidate.candidateAddress == address {
+        blockchain::revert("Candidate already exists")
+      }
+    }
+
+    self.candidates.add(Candidate({
+      name: name,
+      candidateAddress: address,
+      voteCount: 0
+    }))
+
+    self.totalCandidates = self.totalCandidates + 1
+  }
+
+  public fun vote(voterId: u64, voterName: String, voterAddress: blockchain::Address, candidateAddress: blockchain::Address) {
+    for voter in self.voters {
+      if voter.id == voterId && voter.voterAddress == voterAddress {
+        blockchain::revert("Already voted")  
+      }
+    }
+
+    for candidate in self.candidates {
+      if candidate.candidateAddress == voterAddress {
+        blockchain::revert("Cannot vote for self")
+      }
+    }
+
+    for candidate in &mut self.candidates {
+      if candidate.candidateAddress == candidateAddress {
+        candidate.voteCount = candidate.voteCount + 1
+      }
+    }
+
+    self.voters.add(Voter({
+      id: voterId,
+      name: voterName,
+      voterAddress: voterAddress, 
+      candidateAddress: candidateAddress
+    }))
+
+    self.totalVoters = self.totalVoters + 1
+  }
+
+  public fun requestProposal(proposerAddress: blockchain::Address, name: String) {
+    self.proposals.add(Proposal({
+      name: name,
+      proposerAddress: proposerAddress
+    }))
+  }
+
+  public fun getProposals(): [Proposal] {
+    return self.proposals
+  }
+
+  public fun getCandidates(): [Candidate] {
+    return self.candidates
+  }
+
+  public fun getVoters(): [Voter] {
+    return self.voters
+  }
+}
